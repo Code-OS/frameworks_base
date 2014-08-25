@@ -3520,27 +3520,19 @@ public class SettingsProvider extends ContentProvider {
                 }
 
                 if (currentVersion == 146) {
-                    // Version 147
-                    /* Pixel Launcher checks this Setting to show Adaptive Icons options
-                        and anyway we need to enable dev settings for our stuff so we set
-                        this to enabled once forever */
+                    // Version 147: Set the default value for BATTERY_PLUGGED_SOUND.
                     if (userId == UserHandle.USER_SYSTEM) {
                         final SettingsState globalSettings = getGlobalSettingsLocked();
-                        Setting currentSetting = globalSettings.getSettingLocked(
-                                Settings.Global.DEVELOPMENT_SETTINGS_ENABLED);
+                        final Setting currentSetting = globalSettings.getSettingLocked(
+                                Settings.Global.BATTERY_PLUGGED_SOUND);
                         if (currentSetting.isNull()) {
-                            globalSettings.insertSettingLocked(
-                                    Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,
-                                    "1", null, true, SettingsState.SYSTEM_PACKAGE_NAME);
-                        }
-                        /* Play services check this Setting internally to notify about
-                            new OTA so we force it to disabled once forever */
-                        currentSetting = globalSettings.getSettingLocked(
-                                Settings.Global.OTA_DISABLE_AUTOMATIC_UPDATE);
-                        if (currentSetting.isNull()) {
-                            globalSettings.insertSettingLocked(
-                                    Settings.Global.OTA_DISABLE_AUTOMATIC_UPDATE,
-                                    "1", null, true, SettingsState.SYSTEM_PACKAGE_NAME);
+                            final String defaultValue = getContext().getResources().getString(
+                                    R.string.def_battery_plugged_sound);
+                            if (defaultValue != null) {
+                                globalSettings.insertSettingLocked(
+                                        Settings.Global.BATTERY_PLUGGED_SOUND, defaultValue,
+                                        null, true, SettingsState.SYSTEM_PACKAGE_NAME);
+                            }
                         }
                     }
 
