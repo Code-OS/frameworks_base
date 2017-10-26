@@ -3347,6 +3347,109 @@ public class StatusBar extends SystemUI implements DemoMode,
         if (showMenu) setLightsOn(true);
     }
 
+    private void tick(StatusBarNotification n, boolean firstTime, boolean isMusic, MediaMetadata metaMediaData) {
+        if (mTicker == null || mTickerEnabled == 0) return;
+
+        // no ticking on keyguard, we have carrier name in the statusbar
+        if (isKeyguardShowing() || isDozing()) return;
+
+        // no ticking in lights-out mode
+        if (!areLightsOn()) return;
+
+        // no ticking in Setup
+        if (!isDeviceProvisioned()) return;
+
+        // not for you
+        if (!isNotificationForCurrentProfiles(n)) return;
+
+        // Show the ticker if one is requested. Also don't do this
+        // until status bar window is attached to the window manager,
+        // because...  well, what's the point otherwise?  And trying to
+        // run a ticker without being attached will crash!
+        if ((!isMusic ? (n.getNotification().tickerText != null) : (metaMediaData != null)) && mStatusBarWindow != null
+                && mStatusBarWindow.getWindowToken() != null) {
+            if (0 == (mDisabled1 & (StatusBarManager.DISABLE_NOTIFICATION_ICONS
+                    | StatusBarManager.DISABLE_NOTIFICATION_TICKER))) {
+                mTicker.addEntry(n, isMusic, metaMediaData);
+            }
+        }
+    }
+
+    private class MyTicker extends Ticker {
+        MyTicker(Context context, View sb) {
+            super(context, sb);
+            if (mTickerEnabled == 0) {
+                Log.w(TAG, "MyTicker instantiated with mTickerEnabled=0", new Throwable());
+            }
+        }
+
+        @Override
+        public void tickerStarting() {
+            if (mTicker == null || mTickerEnabled == 0) return;
+            mTicking = true;
+            mStatusBarContent.setVisibility(View.GONE);
+            mStatusBarContent.startAnimation(loadAnim(true, null));
+            mTickerView.setVisibility(View.VISIBLE);
+            mTickerView.startAnimation(loadAnim(false, null));
+        }
+
+        @Override
+        public void tickerDone() {
+            if (mTicker == null || mTickerEnabled == 0) return;
+            mStatusBarContent.setVisibility(View.VISIBLE);
+            mStatusBarContent.startAnimation(loadAnim(false, null));
+            mTickerView.setVisibility(View.GONE);
+            mTickerView.startAnimation(loadAnim(true, mTickingDoneListener));
+        }
+
+        @Override
+        public void tickerHalting() {
+            if (mTicker == null || mTickerEnabled == 0) return;
+            if (mStatusBarContent.getVisibility() != View.VISIBLE) {
+                mStatusBarContent.setVisibility(View.VISIBLE);
+                mStatusBarContent
+                        .startAnimation(loadAnim(false, null));
+            }
+            mTickerView.setVisibility(View.GONE);
+            // we do not animate the ticker away at this point, just get rid of it (b/6992707)
+        }
+
+        @Override
+        public void onDarkChanged(Rect area, float darkIntensity, int tint) {
+            applyDarkIntensity(area, mTickerView, tint);
+        }
+    }
+
+    Animation.AnimationListener mTickingDoneListener = new Animation.AnimationListener() {
+        public void onAnimationEnd(Animation animation) {
+            mTicking = false;
+        }
+        public void onAnimationRepeat(Animation animation) {
+        }
+        public void onAnimationStart(Animation animation) {
+        }
+    };
+
+    private Animation loadAnim(boolean outAnim, Animation.AnimationListener listener) {
+        AlphaAnimation animation = new AlphaAnimation((outAnim ? 1.0f : 0.0f), (outAnim ? 0.0f : 1.0f));
+        Interpolator interpolator = AnimationUtils.loadInterpolator(mContext,
+                (outAnim ? android.R.interpolator.accelerate_quad : android.R.interpolator.decelerate_quad));
+        animation.setInterpolator(interpolator);
+        animation.setDuration(350);
+
+        if (listener != null) {
+            animation.setAnimationListener(listener);
+        }
+
+        return animation;
+    }
+
+    private void haltTicker() {
+        if (mTicker != null && mTickerEnabled != 0) {
+            mTicker.halt();
+        }
+    }
+
     public static String viewInfo(View v) {
         return "[(" + v.getLeft() + "," + v.getTop() + ")(" + v.getRight() + "," + v.getBottom()
                 + ") " + v.getWidth() + "x" + v.getHeight() + "]";
@@ -4431,6 +4534,9 @@ public class StatusBar extends SystemUI implements DemoMode,
         updateQsExpansionEnabled();
         mDozeScrimController.setDozing(mDozing, animate);
         updateRowStates();
+        if (isDozing()) {
+            haltTicker();
+        }
         Trace.endSection();
     }
 
