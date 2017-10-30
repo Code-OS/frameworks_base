@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2013 gzosp Project
+* Copyright (C) 2017 codeos Project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 * limitations under the License.
 */
 
-package com.android.internal.util.gzosp;
+package com.android.internal.util.codeos;
 
 import android.content.Context;
 import android.content.Intent;
